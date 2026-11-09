@@ -1,0 +1,57 @@
+@startuml A1_6_undo_redo
+title Figma Sketch · C1 · Отмена и повтор действий
+skinparam shadowing false
+skinparam linetype ortho
+actor "Пользователь" as User
+component "Command Dispatcher" as Cmd
+component "Local History\nUndo / Redo stacks" as History
+component "Edit Lock Port" as Lock
+component "Document Model" as Model
+component "Local Operation Queue" as Queue
+component "C2 · Sync" as C2
+User --> Cmd : выполнить действие
+Cmd --> Model : применить command
+Cmd --> History : записать локальную команду
+User --> History : Ctrl+Z / Undo
+History --> Cmd : создать inverse command
+Cmd --> Lock : запросить lease\nдля vector object
+Lock --> C2 : acquire lock
+C2 --> Lock : lease / отказ
+Cmd --> Model : применить inverse\nпосле проверки revision
+Cmd --> Queue : отправить undo operation
+Queue --> C2 : submit operationId
+User --> History : Ctrl+Shift+Z / Redo
+History --> Cmd : создать новую redo command
+Cmd --> Lock : повторно проверить lease\nдля vector object
+Cmd --> Model : повторно применить действие
+Cmd --> Queue : отправить новую операцию
+User --> Cmd : Ctrl+D / Duplicate
+Cmd --> Model : создать копию выбранного объекта
+Cmd --> Queue : отправить duplicate operation
+note right of History
+ История локальная для пользователя.
+ Удалённые операции не попадают
+ в локальный Undo stack.
+ Перемещение по стекам выполняется
+ после успешной проверки/принятия операции.
+end note
+note bottom of Cmd
+ Vector Undo/Redo: получить lease и проверить,
+ что состояние объекта не изменилось после
+ исходной команды. Не затирать удалённые правки.
+ Redo создаёт новую операцию с новым ID.
+end note
+note bottom of Model
+ Raster Undo — компенсирующая операция
+ или отмена эффекта исходного Stroke,
+ а не откат всего слоя к старому snapshot.
+ Raster Redo повторно публикует действие
+ как новую синхронизируемую операцию.
+end note
+note bottom of Queue
+ Offline undo/redo ставится в очередь.
+ Интерфейс показывает pending до подтверждения;
+ нельзя показывать операцию как durably saved
+ до подтверждения C3.
+end note
+@enduml

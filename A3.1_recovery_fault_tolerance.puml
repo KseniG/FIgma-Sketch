@@ -1,0 +1,65 @@
+@startuml A3_1_recovery_fault_tolerance
+title Figma Sketch - A3.1 - Устойчивость и восстановление
+skinparam shadowing false
+skinparam sequenceMessageAlign center
+
+actor "Пользователь" as User
+participant "C1 - Editor" as C1
+participant "Local Durable Queue" as Local
+participant "C2 - Sync" as C2
+participant "C3 - Primary Storage" as Primary
+participant "Backup Store" as Backup
+
+== Обычная запись ==
+User -> C1 : выполнить действие
+C1 -> Local : записать operationId + payload
+C1 -> C2 : submit operation
+C2 -> Primary : append operation / update version
+Primary --> C2 : durable ack
+C2 --> C1 : accepted + persisted
+C1 -> Local : mark persisted / compact safely
+
+== Отказ основного хранилища ==
+User -> C1 : продолжить работу (если C2 допускает)
+C1 -> Local : сохранять новые pending operations
+C2 -> Primary : persist operation
+Primary --> C2 : unavailable
+C2 --> C1 : persistence unavailable
+
+note over C1,C2
+Не выдавать статус durable saved.
+Продолжение записи допускается только при наличии
+независимого надёжного журнала C2 или локальной
+очереди с явно определёнными гарантиями.
+end note
+
+== Восстановление C3 ==
+Backup -> Primary : восстановить согласованный backup
+Primary --> Backup : restore completed / checksum report
+C2 -> Primary : replay durable operation log\nпосле точки восстановления
+Primary --> C2 : replay persisted
+C2 --> C1 : durable acknowledgements
+C1 -> Local : удалить/сжать подтверждённые операции
+
+note right of Backup
+Резервная копия должна находиться
+в независимом failure domain.
+Проверять целостность checksum
+и регулярно тестировать восстановление.
+end note
+
+note right of Primary
+Поддержать версии и point-in-time recovery.
+Определить RPO, RTO, retention, расписание
+backup и порядок восстановления совместно
+с эксплуатацией/разработчиками.
+end note
+
+note right of Local
+Локальная очередь защищает от временного
+сетевого/серверного сбоя, но не заменяет
+независимые серверные backup: отказ устройства
+пользователя может уничтожить локальные данные.
+end note
+
+@enduml

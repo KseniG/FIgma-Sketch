@@ -1,0 +1,51 @@
+@startuml A1_5_raster_model
+title Figma Sketch · C1 · Растровая модель
+skinparam shadowing false
+skinparam componentStyle rectangle
+skinparam linetype ortho
+actor "Пользователь" as User
+component "Brush Tool" as Brush
+component "Stroke Builder" as Builder
+component "Raster Operation Model" as Ops
+component "Local Operation Queue" as Queue
+component "Tile Renderer" as Renderer
+component "Tile Cache" as Cache
+component "C2 · Sync / Ordering" as C2
+component "C3 · Durable Storage" as C3
+User --> Brush : pointer / pressure / tilt
+Brush --> Builder : samples
+Builder --> Ops : Stroke operation
+Ops --> Queue : operationId + payload
+Queue --> C2 : submit / retry
+C2 --> Ops : ordered remote strokes
+Ops --> Renderer : replay operations
+Renderer --> Cache : render / invalidate tiles
+Cache --> Renderer : cached tile if revision matches
+Ops --> C3 : persist operation log / snapshot
+C3 --> Ops : restore operations / snapshot
+note right of Ops
+ Stroke содержит автора, тип кисти,
+ paint/erase operation, цвет, размер,
+ opacity, hardness, blend mode,
+ точки (x, y, pressure, tilt) и orderKey.
+ Одновременные штрихи — отдельные операции.
+end note
+note right of Queue
+ Операции получают уникальные ID.
+ Повторная отправка идемпотентна.
+ До подтверждения C2 операция остаётся
+ pending; при offline хранится локально.
+end note
+note bottom of Cache
+ Tile cache — только производный render cache.
+ Его можно инвалидировать и перестроить
+ из исходных Stroke operations.
+ Tile snapshot не является единственным
+ источником восстановления документа.
+end note
+note bottom of C3
+ Снимки тайлов допустимы как ускорение,
+ но должны быть согласованы с revision
+ и журналом исходных операций.
+end note
+@enduml

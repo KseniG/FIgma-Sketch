@@ -1,0 +1,44 @@
+@startuml A1_3_edit_lifecycle
+title Figma Sketch · C1 · Жизненный цикл редактирования объекта
+skinparam shadowing false
+skinparam linetype ortho
+[*] --> Idle
+Idle --> Selecting : пользователь выбирает объект
+Selecting --> RequestLock : объект требует блокировки
+RequestLock --> Editing : C2 выдал lease
+RequestLock --> ReadOnly : объект уже редактирует другой
+ReadOnly --> Idle : снять выделение
+Editing --> Preview : изменение параметров / drag
+Preview --> Preview : обновление локального preview
+Preview --> CommitCheck : завершить действие
+CommitCheck --> Commit : lease действителен\nи revision не изменился
+CommitCheck --> Conflict : lease истёк / revision изменился
+Commit --> SyncPending : применить локальную команду
+SyncPending --> Editing : операция принята C2
+SyncPending --> PendingOffline : соединение недоступно
+PendingOffline --> SyncPending : reconnect / replay
+Editing --> ReleaseLock : снять выделение
+ReleaseLock --> Idle : lease освобождён
+Editing --> LockLost : lease истёк / связь потеряна
+Preview --> LockLost : lease истёк во время preview
+LockLost --> ReadOnly : отменить commit, показать владельца
+Conflict --> ReadOnly : не перезаписывать чужие изменения
+Conflict --> Editing : повторить после актуализации\nи нового lock
+note right of Preview
+ Preview не считается подтверждённым
+ изменением документа до Commit.
+ При потере lease незавершённый preview
+ отменяется либо сохраняется как локальный
+ черновик, но не публикуется автоматически.
+end note
+note right of SyncPending
+ Локальная очередь хранит операцию
+ с уникальным operationId. UI различает
+ отправку, принятие и долговременную запись.
+end note
+note bottom of CommitCheck
+ Проверяются lease token, права и базовая
+ revision объекта. Любое committed vector edit
+ проходит проверку блокировки.
+end note
+@enduml

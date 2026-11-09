@@ -1,0 +1,52 @@
+@startuml A2_1_sync_sequence
+title Figma Sketch · A2.1 · Синхронизация и восстановление соединения
+skinparam shadowing false
+skinparam sequenceMessageAlign center
+actor "Пользователь A" as A
+participant "C1 · Editor A" as C1A
+participant "Local Queue A" as QA
+participant "C2 · Sync" as C2
+participant "C1 · Editor B" as C1B
+participant "C3 · Storage" as C3
+== Онлайн-операция ==
+A -> C1A : изменить объект / нарисовать Stroke
+C1A -> QA : сохранить operationId + payload
+C1A -> C2 : submit(operationId, baseRevision, payload)
+C2 -> C2 : проверить idempotency / права / lock
+C2 -> C1B : broadcast ordered operation
+C2 -> C3 : append operation log
+C3 --> C2 : durable persistence status
+C2 --> QA : accepted + persistence status
+QA -> QA : отметить подтверждённую операцию
+== Потеря соединения ==
+A -> C1A : продолжить редактирование
+C1A -> QA : записать операцию как pending
+note over C1A,QA
+ UI показывает локально применённое изменение
+ отдельно от принятого сервером и сохранённого
+ в долговременном хранилище.
+end note
+== Reconnect / replay ==
+C1A -> C2 : reconnect(clientId, lastAck)
+C2 --> C1A : missing remote operations / sync cursor
+C1A -> C2 : replay pending operations
+C2 -> C2 : deduplicate by operationId
+C2 -> C3 : persist missing operations
+C3 --> C2 : durable ack
+C2 --> QA : accepted + durable ack
+C2 -> C1B : broadcast missing operations
+note right of C2
+ C2 задаёт согласованный порядок операций.
+ Для растровых Stroke используется стабильный
+ orderKey/sequence, не только timestamp.
+ Повторная отправка одного operationId
+ не должна применяться повторно.
+end note
+note over C2,C3
+ При недоступности C3 C2 может принять операцию
+ только если архитектура гарантирует её надёжное
+ журналирование в независимом durable log.
+ Иначе подтверждение accepted не равно durable.
+ Это решение требуется зафиксировать в C2/C3.
+end note
+@enduml

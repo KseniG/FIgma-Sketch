@@ -1,0 +1,190 @@
+@startuml A1_2_document_model
+title Figma Sketch · C1 · Модель документа
+skinparam classAttributeIconSize 0
+skinparam shadowing false
+hide methods
+class DocState {
+ +documentId: ID
+ +meta: DocumentMeta
+ +pageOrder: List<PageId>
+ +pages: Map<PageId, Page>
+ +nodes: Map<NodeId, SceneNode>
+ +assets: Map<AssetId, AssetRef>
+ +commentAnchors: Map<CommentId, CommentAnchor>
+}
+class DocumentMeta {
+ +name: String
+ +createdAt: DateTime
+ +updatedAt: DateTime
+ +ownerId: UserId
+}
+class Page {
+ +id: PageId
+ +name: String
+ +layerOrder: List<LayerId>
+ +layers: Map<LayerId, Layer>
+}
+abstract class Layer {
+ +id: LayerId
+ +name: String
+ +visible: Boolean
+ +locked: Boolean
+ +opacity: Float
+}
+class VectorLayer {
+ +childOrder: List<NodeId>
+}
+class RasterLayer {
+ +strokeOrder: List<StrokeId>
+}
+abstract class SceneNode {
+ +id: NodeId
+ +transform: Transform
+ +visible: Boolean
+ +locked: Boolean
+ +opacity: Float
+}
+abstract class ContainerNode {
+ +childOrder: List<NodeId>
+ +clipContent: Boolean
+}
+class GroupNode
+class FrameNode {
+ +name: String
+ +background: Color
+}
+abstract class VectorShape {
+ +style: ShapeStyle
+ +bounds: Rect
+}
+class RectShape
+class EllipseShape
+class LineShape
+class PathShape {
+ +nodes: List<BezierNode>
+ +closed: Boolean
+}
+class TextShape {
+ +text: String
+ +fontFamily: String
+ +fontSize: Float
+ +alignment: String
+}
+class ImageShape {
+ +assetId: AssetId
+ +cropRect: NormalizedRect
+}
+class BezierNode {
+ +anchor: Point
+ +handleIn: Point
+ +handleOut: Point
+ +handleMode: HandleMode
+}
+class ShapeStyle {
+ +fill: Paint
+ +stroke: Paint
+ +strokeWidth: Float
+ +blendMode: BlendMode
+}
+class Transform {
+ +x: Float
+ +y: Float
+ +width: Float
+ +height: Float
+ +rotation: Float
+}
+class Stroke {
+ +id: StrokeId
+ +authorId: UserId
+ +brushType: BrushType
+ +operation: PaintOperation
+ +color: Color
+ +size: Float
+ +opacity: Float
+ +hardness: Float
+ +blendMode: BlendMode
+ +orderKey: String
+ +points: List<StrokePoint>
+}
+class StrokePoint {
+ +x: Float
+ +y: Float
+ +pressure: Float
+ +tilt: Point
+}
+class AssetRef {
+ +id: AssetId
+ +uri: String
+ +mimeType: String
+ +checksum: String
+}
+class CommentAnchor {
+ +commentId: CommentId
+ +targetNodeId: NodeId
+ +canvasPosition: Point
+ +pageId: PageId
+}
+class Point {
+ +x: Float
+ +y: Float
+}
+class Rect {
+ +x: Float
+ +y: Float
+ +width: Float
+ +height: Float
+}
+class NormalizedRect {
+ +x: Float
+ +y: Float
+ +width: Float
+ +height: Float
+}
+DocState *-- DocumentMeta
+DocState *-- Page
+DocState *-- SceneNode
+DocState *-- AssetRef
+DocState *-- CommentAnchor
+Page *-- Layer
+Layer <|-- VectorLayer
+Layer <|-- RasterLayer
+SceneNode <|-- ContainerNode
+ContainerNode <|-- GroupNode
+ContainerNode <|-- FrameNode
+SceneNode <|-- VectorShape
+VectorShape <|-- RectShape
+VectorShape <|-- EllipseShape
+VectorShape <|-- LineShape
+VectorShape <|-- PathShape
+VectorShape <|-- TextShape
+VectorShape <|-- ImageShape
+PathShape *-- BezierNode
+VectorShape *-- ShapeStyle
+SceneNode *-- Transform
+RasterLayer *-- Stroke
+Stroke *-- StrokePoint
+CommentAnchor --> SceneNode : optional target
+CommentAnchor --> Page
+PathShape ..> Point
+StrokePoint ..> Point
+ImageShape ..> NormalizedRect : crop relative to source
+note right of FrameNode
+ Frame — контейнер внутри страницы,
+ который может быть выбран в Projection Plugin.
+ Page и Frame — разные сущности.
+end note
+note right of CommentAnchor
+ C1 хранит позицию/привязку.
+ Текст, ответы и жизненный цикл треда
+ принадлежат C4.
+end note
+note bottom of Stroke
+ Stroke — исходная операция рисования.
+ Tile cache и tile snapshots — производные
+ данные, которые можно перестроить.
+end note
+note bottom of ShapeStyle
+ Opacity задаётся на SceneNode,
+ чтобы не дублировать одно свойство.
+end note
+@enduml

@@ -1,0 +1,59 @@
+@startuml A1_4_tool_fsm
+title Figma Sketch · C1 · Состояния инструментов
+skinparam shadowing false
+skinparam linetype ortho
+[*] --> Select
+state Select {
+ [*] --> IdleSelect
+ IdleSelect --> ObjectSelected : click object
+ ObjectSelected --> IdleSelect : click empty / Esc
+ ObjectSelected --> DragSelection : drag selected object
+ DragSelection --> ObjectSelected : pointer up / commit
+}
+Select --> ShapeMenu : выбрать Shape
+ShapeMenu --> Shape : выбрать тип фигуры
+Shape --> Shape : drag / update preview
+Shape --> Select : pointer up / commit
+Shape --> Select : Esc / cancel
+Select --> Pen : выбрать Pen
+Pen --> Pen : click / add anchor node
+Pen --> Pen : drag / set Bezier handles
+Pen --> Select : Enter / double-click / close first node
+Pen --> Select : Esc / cancel unfinished path
+Select --> Brush : выбрать Brush
+Brush --> Brush : pointer move / append stroke points
+Brush --> Select : pointer up / commit stroke
+Select --> Comments : выбрать Comments
+Comments --> Comments : click canvas / object anchor
+Comments --> Select : Esc / exit comments
+Select --> ImageInsert : drag image onto canvas
+ImageInsert --> Select : asset loaded / insert selected image
+ImageInsert --> Select : cancel
+Select --> Crop : enter crop mode
+Crop --> Crop : drag crop bounds
+Crop --> Select : commit crop / leave crop mode
+Crop --> Select : Esc / cancel crop
+Select --> Pan : Space + drag / pan canvas
+Shape --> Pan : Space + drag
+Pen --> Pan : Space + drag
+Brush --> Pan : Space + drag
+Comments --> Pan : Space + drag
+Pan --> Select : release Space
+note right of ShapeMenu
+ Shape menu contains basic vector shapes.
+ Shape creation starts on pointer down
+ and commits on pointer up.
+end note
+note right of ImageInsert
+ Image can be imported by drag-and-drop.
+ After insertion it is selected and editable.
+end note
+note bottom of Comments
+ Comment thread and replies are owned by C4.
+ C1 manages the anchor to an object or canvas point.
+end note
+note bottom of Pan
+ Pan is temporary canvas navigation;
+ it returns to the previously active tool.
+end note
+@enduml

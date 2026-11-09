@@ -1,0 +1,84 @@
+@startuml A1_1_components
+title Figma Sketch · C1 · Компоненты ядра редактора
+skinparam shadowing false
+skinparam componentStyle rectangle
+skinparam packageStyle rectangle
+skinparam linetype ortho
+package "C1 · Ядро редактора" {
+ component "Input Router\nВвод пользователя" as Input
+ component "Tool Controller\nИнструменты" as Tools
+ component "Selection Service\nВыделение" as Selection
+ component "Hit Test\nПоиск объектов под курсором" as Hit
+ component "Command Dispatcher\nПроверка и выполнение команд" as Commands
+ component "Document Model\nМодель документа" as Model
+ component "Page / Layer Manager\nСтраницы и слои" as Pages
+ component "Renderer\nОтрисовка холста" as Renderer
+ component "Export Service\nPNG / SVG" as Export
+ component "Undo / Redo\nИстория действий" as History
+ component "Comment Anchor Service\nЯкоря комментариев" as Anchors
+ component "Local Operation Queue\nЛокальная очередь операций" as Queue
+ interface "Document Port" as IDoc
+ interface "Sync Port" as ISync
+ interface "Asset Port" as IAsset
+ interface "Edit Lock Port" as ILock
+ interface "Comment Port" as IComment
+ interface "Plugin Extension Port" as IPlugin
+ component "Sync Adapter" as SyncAdapter
+ component "Asset Adapter" as AssetAdapter
+ component "Lock Adapter" as LockAdapter
+ component "Comment Adapter" as CommentAdapter
+ component "Plugin Host / Adapter" as PluginAdapter
+}
+package "Внешние ядра" {
+ component "C2 · Sync / Locks" as C2
+ component "C3 · Storage" as C3
+ component "C4 · Comments / Chat" as C4
+ component "External / Future Plugin" as Plugin
+}
+Input --> Tools
+Tools --> Selection : select / hit test
+Selection --> Hit
+Hit --> Model : геометрия
+Tools --> Commands : команды редактирования
+Commands --> IDoc
+Model - IDoc
+Pages --> Model
+Commands --> ILock : запрос lease
+LockAdapter - ILock
+LockAdapter --> C2
+SyncAdapter - ISync
+SyncAdapter --> C2 : отправка / получение операций
+SyncAdapter --> Queue : подтверждения и повторы
+Queue --> SyncAdapter : pending operations
+AssetAdapter - IAsset
+AssetAdapter --> C3 : upload / download
+Renderer --> IAsset : загрузка ассетов
+Export --> Model
+Export --> Renderer
+History --> Commands : inverse / redo commands
+Anchors --> Model : anchor data
+CommentAdapter - IComment
+Anchors --> IComment : anchor context
+CommentAdapter --> C4 : threads / replies
+PluginAdapter - IPlugin
+PluginAdapter --> Plugin : lifecycle / capabilities
+Commands --> IPlugin : доступ к разрешённым командам
+Model --> IPlugin : read-only document context
+Model --> Renderer : изменения модели
+Renderer --> Export : render output
+note bottom of Queue
+ Операция получает уникальный ID.
+ Статус локально различает queued,
+ sent, accepted и durably persisted.
+end note
+note bottom of PluginAdapter
+ Plugin Host предоставляет общий контракт расширения.
+ Плагин подключается через разрешённые capabilities,
+ не получает прямого доступа к внутренностям C1.
+ Плагины опциональны и могут отключаться.
+end note
+note bottom of Model
+ Модель не зависит от транспорта,
+ хранилища и конкретной реализации UI.
+end note
+@enduml

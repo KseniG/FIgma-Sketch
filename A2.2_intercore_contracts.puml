@@ -1,0 +1,64 @@
+@startuml A2_2_intercore_contracts
+title Figma Sketch · A2.2 · Межъядерные контракты
+skinparam shadowing false
+skinparam componentStyle rectangle
+skinparam linetype ortho
+package "C1 · Editor" as C1 {
+ interface "DocumentPort\nload / apply / revision" as DocPort
+ interface "SyncPort\nsubmit / receive / ack / catch-up" as SyncPort
+ interface "LockPort\nacquire / renew / release / validate" as LockPort
+ interface "AssetPort\nupload / download / checksum" as AssetPort
+ interface "CommentAnchorPort\ncreate / update / resolve anchor" as AnchorPort
+}
+package "C2 · Sync" as C2 {
+ component "Operation Service" as OpSvc
+ component "Lock Service" as LockSvc
+ component "Presence / Signaling" as Presence
+}
+package "C3 · Storage" as C3 {
+ component "Document / Version Store" as DocStore
+ component "Asset Store" as AssetStore
+ component "Backup / Restore" as Backup
+}
+package "C4 · Communication" as C4 {
+ component "Comment Threads / Chat" as Threads
+ component "Call Service" as Calls
+ component "Recording / Summary Jobs" as Jobs
+}
+DocPort --> C1
+SyncPort --> OpSvc
+LockPort --> LockSvc
+AssetPort --> AssetStore
+AnchorPort --> Threads
+OpSvc <--> DocStore : durable operation log / snapshot metadata
+OpSvc <--> LockSvc : lock validation context
+Presence <--> Calls : presence / signaling
+Threads --> DocStore : comment anchor references
+Calls --> Jobs : recording / transcript / summary jobs
+Jobs --> C3 : persist recordings, transcripts, summaries
+note bottom of SyncPort
+ Contract requires unique operationId, idempotency,
+ base revision, ordering metadata, acknowledgements,
+ reconnect cursor and remote operation delivery.
+end note
+note bottom of LockPort
+ Lease has owner, token, expiry and renewal.
+ Expired/disconnected client loses edit authority.
+end note
+note bottom of C3
+ Contract requires versioned documents/assets,
+ checksums, backup and point-in-time restore.
+ Exact RPO/RTO and retention are configuration decisions.
+end note
+note bottom of C4
+ Calls must not block editor availability.
+ Recording uploads are chunked/resumable;
+ AI summaries are retryable durable jobs.
+ Comment thread text/replies live in C4;
+ C1 owns anchor coordinates/references.
+end note
+note right of Calls
+ TURN/STUN and real-time media transport
+ are connectivity infrastructure, not durable storage.
+end note
+@enduml

@@ -1,0 +1,57 @@
+@startuml A0_system_context
+title Figma Sketch · A0 — Контекст системы
+left to right direction
+skinparam shadowing false
+skinparam componentStyle rectangle
+skinparam packageStyle rectangle
+skinparam linetype ortho
+actor "Участник A" as UA
+actor "Участник B" as UB
+rectangle "Figma Sketch" as App {
+  component "C1\nРедактор и модель документа" as C1
+  component "C2\nСинхронизация и блокировки" as C2
+  component "C3\nХранение и восстановление" as C3
+  component "C4\nКомментарии, чат и звонки" as C4
+  component "Plugin Host / API\nРасширения редактора" as PluginHost
+}
+rectangle "Внешние / будущие плагины\n(абстрактные расширения)" as Plugins
+cloud "Объектное хранилище\nS3 API / MinIO — пример" as Blob
+cloud "Сервис аудио- и видеосвязи\nнапример, LiveKit" as Media
+database "Независимое резервное\nхранилище / backup" as Backup
+UA --> C1 : ввод и команды
+UB --> C1 : ввод и команды
+C1 <--> C2 : операции документа,\nблокировки, подтверждения
+C1 <--> C3 : документы, версии,\nассеты и восстановление
+C1 <--> C4 : якоря комментариев,\nконтекст документа
+C2 <--> C3 : журнал операций,\nсостояние синхронизации
+C4 <--> C2 : присутствие,\nсигнализация соединения
+C4 <--> C3 : записи, транскрипты,\nсводки и история чата
+C3 --> Blob : бинарные файлы и версии
+C3 --> Backup : независимые копии
+C4 <--> Media : аудио / видео поток
+C1 <--> PluginHost : расширяемый Plugin API
+PluginHost <--> Plugins : подключение / отключение плагинов
+note bottom of C1
+  C1 отвечает за модель документа,
+  команды, инструменты и холст.
+  Локальная очередь неподтверждённых
+  операций позволяет пережить разрыв связи.
+end note
+note bottom of C2
+  C2 — авторитетный координатор операций,
+  порядка применения и временных блокировок.
+end note
+note bottom of C3
+  C3 обеспечивает долговременное хранение,
+  версии, резервное копирование и восстановление.
+  Backup должен быть независим от основного отказа.
+end note
+note bottom of App
+  S3/MinIO и LiveKit — примеры технологий,
+  а не обязательные архитектурные решения.
+  Конкретные RPO/RTO и схема репликации
+  подлежат отдельному согласованию.
+  Plugin API — абстрактная точка расширения;
+  конкретные плагины не являются частью C1.
+end note
+@enduml
